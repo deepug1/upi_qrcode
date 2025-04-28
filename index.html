@@ -79,7 +79,7 @@
     }
     
     h2 {
-      color: var(--primary-color);
+      color: #ffffffc7;
       margin-bottom: 15px;
       font-weight: 600;
       font-size: 1.5rem;
@@ -126,7 +126,16 @@
       margin-top: 8px;
       transition: background-color 0.3s ease, color 0.3s ease;
     }
-    
+
+    [data-theme="dark"] button {
+      background-color: var(--secondary-color);
+      color: var(--container-bg);
+    }
+    [data-theme="dark"] button:hover {
+      background-color: #ffffffc7;
+      color: var(--container-bg);
+    }
+
     button:hover {
       background-color: var(--secondary-color);
     }
@@ -333,6 +342,31 @@
       display: flex;
       gap: 30px;
     }
+    /* Style for autofilled inputs */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover, 
+    input:-webkit-autofill:focus {
+      -webkit-text-fill-color: var(--text-color);
+      -webkit-box-shadow: 0 0 0px 1000px var(--input-bg) inset;
+      transition: background-color 5000s ease-in-out 0s;
+      caret-color: var(--text-color);
+    }
+    
+    /* Validation styles */
+    .error-message {
+      color: #e74c3c;
+      font-size: 12px;
+      margin-top: 4px;
+      display: none;
+    }
+    
+    input.error {
+      border-color: #e74c3c;
+    }
+    
+    .error-message.visible {
+      display: block;
+    }
     
     /* Responsive styles */
     @media (max-width: 768px) {
@@ -393,6 +427,7 @@
         <div class="form-group">
           <label for="upiId">UPI ID</label>
           <input type="text" id="upiId" placeholder="example@upi" required>
+          <div class="error-message" id="upiIdError">Please enter a valid UPI ID (format: username@upi)</div>
         </div>
         
         <div class="form-group">
@@ -402,7 +437,8 @@
         
         <div class="form-group">
           <label for="amount">Amount (INR)</label>
-          <input type="number" id="amount" placeholder="Enter amount" required>
+          <input type="number" id="amount" placeholder="Enter amount" min="1" step="any" required>
+          <div class="error-message" id="amountError">Amount must be greater than 0</div>
         </div>
         
         <button type="submit">Generate QR Code</button>
@@ -461,11 +497,74 @@
   </div>
 
   <script>
+    // Form validation functions
+    function isValidUpiId(upiId) {
+      // Basic UPI ID format validation: something@something
+      const upiRegex = /^[a-zA-Z0-9_.]{3,}@[a-zA-Z]{3,}$/;
+      return upiRegex.test(upiId);
+    }
+
+    function validateAmount(amount) {
+      return amount > 0;
+    }
+
+    function showError(inputElement, errorElement) {
+      inputElement.classList.add('error');
+      errorElement.classList.add('visible');
+    }
+
+    function hideError(inputElement, errorElement) {
+      inputElement.classList.remove('error');
+      errorElement.classList.remove('visible');
+    }
+
+    // Input validation event listeners
+    const upiIdInput = document.getElementById('upiId');
+    const upiIdError = document.getElementById('upiIdError');
+    const amountInput = document.getElementById('amount');
+    const amountError = document.getElementById('amountError');
+
+    upiIdInput.addEventListener('input', function() {
+      if (isValidUpiId(this.value)) {
+        hideError(upiIdInput, upiIdError);
+      }
+    });
+
+    amountInput.addEventListener('input', function() {
+      if (validateAmount(this.value)) {
+        hideError(amountInput, amountError);
+      }
+    });
+
     document.getElementById('upiForm').addEventListener('submit', function(e) {
       e.preventDefault();
+      
       const upiId = document.getElementById('upiId').value;
       const payeeName = document.getElementById('payeeName').value;
-      const amount = document.getElementById('amount').value;
+      const amount = parseFloat(document.getElementById('amount').value);
+      
+      let isValid = true;
+      
+      // Validate UPI ID
+      if (!isValidUpiId(upiId)) {
+        showError(upiIdInput, upiIdError);
+        isValid = false;
+      } else {
+        hideError(upiIdInput, upiIdError);
+      }
+      
+      // Validate amount
+      if (!validateAmount(amount)) {
+        showError(amountInput, amountError);
+        isValid = false;
+      } else {
+        hideError(amountInput, amountError);
+      }
+      
+      // Only proceed if all validations pass
+      if (!isValid) {
+        return;
+      }
 
       const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR`;
 
@@ -475,7 +574,7 @@
       
       // Update display values
       document.getElementById('displayUpiId').textContent = upiId;
-      document.getElementById('displayPayeeName').textContent = payeeName;
+      document.getElementById('displayPayeeName').textContent = payeeName || 'Not Specified';
       document.getElementById('displayAmount').textContent = `₹${amount}`;
 
       // Get current theme to determine QR colors
